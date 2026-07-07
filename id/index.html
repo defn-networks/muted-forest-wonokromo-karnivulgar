@@ -53,7 +53,7 @@
     border: 1px solid #444;
     font-family: monospace;
     font-size: 12px;
-    z-index: 10000;
+    z-index: 10002;
     display: none; /* Controlled by toggle button */
     flex-direction: column;
     border-radius: 4px;
@@ -124,13 +124,13 @@
     right: 100px; /* This sits the partners to the left of the CC license */
     display: flex;
     gap: 15px;
-    align-items: center;
+    align-items: right;
     z-index: 50;
     pointer-events: auto;
 }
 
 #partners img {
-    height: 30px; /* Adjust height to match your visual aesthetic */
+    height: 23px; /* Adjust height to match your visual aesthetic */
     opacity: 0.7;
     transition: opacity 0.3s;
 }
@@ -164,7 +164,7 @@
 
     <div id="start-overlay"><button id="start-btn">START</button></div>
   <a href="../index.html" style="position: fixed; top: 21px; right: 125px; z-index: 99999; color: #8f9593; font-family: monospace; font-size: 12px; text-decoration: none; border-bottom: 1px dashed #444;">EN</a>
-    <button id="chat-toggle-btn">[ MSG_SYS ]</button>
+    <button id="chat-toggle-btn">[ LIVCHAT ]</button>
 
 <div id="chat-ui">
     <div class="chat-header">
@@ -188,8 +188,9 @@
     <div id="btn-down" class="dpad-btn">▼</div>
 </div>
     <div id="partners">
-    <a href="https://www.ifi-id.com/surabaya/" target="_blank"><img src="../IFI_Logo_WEB.png"></a>
+    <a href="https://cakrawalakatamovement.web.id/" target="_blank"><img src="../Cakrawalakata_Logo_WEB-2.png"></a>
     <a href="https://panjebarsemangat.id/" target="_blank"><img src="../Panjebar_Semangat_WEB.png" alt="Partner 2"></a>
+    <a href="https://www.ifi-id.com/surabaya/" target="_blank"><img src="../IFI_Logo_WEB.png" alt="Partner 3"></a>
 </div>
 
 <script>
@@ -479,10 +480,10 @@ bubble.addEventListener('mousedown', function(e) {
     toggleBtn.addEventListener('click', () => {
         if (chatUi.style.display === 'flex') {
             chatUi.style.display = 'none';
-            toggleBtn.innerText = '[ MSG_SYS ]';
+            toggleBtn.innerText = '[ LIVCHAT ]';
         } else {
             chatUi.style.display = 'flex';
-            toggleBtn.innerText = '[ CLOSE_SYS ]';
+            toggleBtn.innerText = '[ CLOSE_CHT ]';
             chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
         }
     });
