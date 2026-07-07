@@ -50,6 +50,27 @@
     -webkit-overflow-scrolling: touch;
 }
 
+        #partners {
+    position: absolute;
+    bottom: 10px;
+    right: 100px; /* This sits the partners to the left of the CC license */
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 50;
+    pointer-events: auto;
+}
+
+#partners img {
+    height: 30px; /* Adjust height to match your visual aesthetic */
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+#partners img:hover {
+    opacity: 1.0;
+}
+        
         #dpad {
             position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
             display: grid; grid-template-columns: 40px 40px 40px; grid-template-rows: 40px 40px 40px;
@@ -83,6 +104,10 @@
     <div id="btn-left" class="dpad-btn">◀</div>
     <div id="btn-right" class="dpad-btn">▶</div>
     <div id="btn-down" class="dpad-btn">▼</div>
+</div>
+    <div id="partners">
+    <a href="https://www.ifi-id.com/surabaya/" target="_blank"><img src="../IFI_Logo_WEB.png"></a>
+    <a href="https://panjebarsemangat.id/" target="_blank"><img src="../Panjebar_Semangat_WEB.png" alt="Partner 2"></a>
 </div>
 
 <script>
