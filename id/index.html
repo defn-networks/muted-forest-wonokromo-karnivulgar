@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Muted Forest: Wonokromo oleh Karnivulgar</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; background-color: #000; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; -webkit-tap-highlight-color: transparent; 
+        }
+        canvas {
+            width: 100vw; height: 100vh; object-fit: contain; 
+            image-rendering: -moz-crisp-edges; image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges; image-rendering: pixelated; touch-action: none; 
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); z-index: 99999;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+        }
+        #start-btn { padding: 20px 40px; border: 1px solid #e0e5e5; color: #e0e5e5; font-family: monospace; background: transparent; cursor: pointer; font-size: 20px; }
+        #start-btn:hover { background: #e0e5e5; color: #000; }
+        
+        /* Updated Text Bubble Style */
+        #text-bubble {
+    position: absolute; 
+    display: none; 
+    background: rgba(26, 26, 26, 0.95);
+    color: #e0e5e5; 
+    padding: 15px; 
+    border: 1px solid #444;
+    font-family: monospace; 
+    font-size: 12px; 
+    /* New Centering Logic */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%); /* This forces it to be perfectly centered */
+    max-width: 600px;
+    width: 80%;
+    max-height: 50vh; 
+    overflow-y: auto;
+    pointer-events: auto !important; 
+    z-index: 10000 !important; 
+    border-radius: 4px; 
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+}
+
+        #dpad {
+            position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
+            display: grid; grid-template-columns: 40px 40px 40px; grid-template-rows: 40px 40px 40px;
+            gap: 2px; opacity: 0.35; z-index: 10001; user-select: none; -webkit-user-select: none; touch-action: none; pointer-events: none; 
+        }
+        .dpad-btn {
+            background-color: #2b2b2b; color: #8f9593; border: 2px solid #1a1a1a;
+            font-family: monospace; font-size: 16px; font-weight: bold; display: flex;
+            justify-content: center; align-items: center; cursor: pointer;
+            box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; border-radius: 4px; pointer-events: auto; 
+        }
+        .dpad-btn:active, .dpad-btn.active { background-color: #6c757d; color: #fff; opacity: 1.0; }
+        
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+        
+        @media (min-width: 800px) { #dpad { opacity: 0.2; } }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay"><button id="start-btn">START</button></div>
+  <a href="../index.html" style="position:fixed; top:10px; right:10px; z-index:99999; color:#fff;">EN</a>
+<div id="text-bubble"></div>
+<canvas id="gameCanvas"></canvas>
+
+<div id="dpad">
+    <div id="btn-up" class="dpad-btn">▲</div>
+    <div id="btn-left" class="dpad-btn">◀</div>
+    <div id="btn-right" class="dpad-btn">▶</div>
+    <div id="btn-down" class="dpad-btn">▼</div>
+</div>
+
+<script>
+    // Audio Setup (URLs)
+    const bgm = new Audio('https://github.com/defn-networks/muted-forest-wonokromo-karnivulgar/raw/main/ags_project-8-bit-219384.mp3'); // BGM URL
+    const stepSound = new Audio('https://github.com/defn-networks/muted-forest-wonokromo-karnivulgar/raw/main/footstep%20on%20concrete%204.mp3'); // Step URL
+    bgm.loop = true;
+    bgm.volume = 0.5;
+
+    let hasStarted = false;
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('start-overlay').style.display = 'none';
+        bgm.play();
+        hasStarted = true;
+    });
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const bubble = document.getElementById('text-bubble');
+    // This catches any click made inside the bubble and ensures it triggers the link
+bubble.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'A') {
+        e.stopPropagation(); // Stops the game engine from seeing the click
+    }
+});
+    bubble.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A') {
+        e.stopPropagation();
+        window.open(e.target.href, '_blank'); // Force open in new tab
+    }
+});
+
+    let GAME_WIDTH = 320; let GAME_HEIGHT = 180; let WORLD_WIDTH = 960; 
+
+    function resizeCanvas() {
+        const screenAspect = window.innerWidth / window.innerHeight;
+        const baseAspect = 16 / 9;
+        if (screenAspect > baseAspect) {
+            GAME_HEIGHT = 180; GAME_WIDTH = Math.floor(GAME_HEIGHT * screenAspect);
+        } else {
+            GAME_WIDTH = 320; GAME_HEIGHT = 180;
+        }
+        canvas.width = GAME_WIDTH; canvas.height = GAME_HEIGHT;
+        WORLD_WIDTH = Math.max(960, GAME_WIDTH * 3);
+    }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    bubble.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A') {
+        // This lets the link open normally without triggering game movement
+        e.stopPropagation(); 
+    }
+});
+
+    // =====================================================================
+    // 📝 TEXT BUBBLE CONTENT
+    // =====================================================================
+    const textZones = [
+        { x: 150, html: "<b>System Override: The Architecture of Extraction</b><br><br>Kita bisa bilang ini hutan. Tapi, secara resmi, itu salah. Data menyebut Surabaya mempunyai nol hektar hutan alami. Akan tetapi, di dalam Kebun Binatang Surabaya, pohon-pohon tua masih berdiri. Mereka sudah melewati semuanya. Mereka masih berdiri sampai sekarang.<br>Tempat ini tak pernah sunyi. Hanya terlihat seperti itu dari jauh.<br>Sejarah bukanlah cerita untuk membuat kita merasakan sesuatu. Sejarah adalah rangkaian sistem yang berjalan sesuai dengan desainnya. Di Wonokromo, sistem-sistem itu terus berulang. Pemainnya berganti. Arsitekturnya tidak." },
+        { x: 300, html: "Pada <b>1942</b>, invasi Jepang tidak dihadapi dengan perlawanan – tapi dengan ramalan. Legenda Joyoboyo sudah menyiapkan jalan. Pendudukan dijalani sebagai takdir. Satu algoritma budaya menggantikan yang lain. Dan bukti fisik dari transisi itu – sebuah bunker militer, masih berdiri di belakang kebun binatang – adalah pengingat bahwa ekstraksi jarang menyatakan dirinya sebagai kekerasan. Ia tampil sebagai kemajuan.<br><b>1943</b>, kebun binatang menjadi panggung propaganda. Gambang. Ludruk. Sebuah grup bernama Trio, menampilkan seni bunyi untuk administrasi Jepang. Pada saat yang sama, material kebun binatang dialihkan untuk perang. Hewan-hewan tetap tinggal. Infrastruktur pergi ke tempat lain.<br><b>1944</b>, Bom Sekutu menghantam kilang minyak BPM. Ledakan terlihat dari seluruh Wonokromo. Awan api diabadikan dari udara. Masih ada di arsip.<br><b>1945</b>, Pasukan Gurkha bertempur dengan pemuda Indonesia di jembatan Wonokromo. Para pejuang muda tidak menang. Tapi mereka juga tidak pergi. Mereka tetap di tanah." }, 
+        { x: 400, html: "Sekarang, ekstraksi berlanjut. Hanya saja lebih sulit dilihat. Ia hidup di dalam birokrasi yang statis. Ia ada di miliaran yang hilang. Lingkarannya tak berhenti. Variabelnya saja yang berubah.<br>Foto-foto dan field recording di kawasan ini bukanlah ilustrasi. Mereka adalah bukti dari pergesekan – tempat di mana ekologi urban bertemu dengan reruntuhan struktural. Semua diambil dalam satu kunjungan. Tanpa suntingan. Tanpa sentuhan ulang. Film direkam dalam satu take. Suara mentah.<br>Ini bukan keterbatasan. Ini adalah sikap.<br>Noise is not the absence of a signal – it is the sound of the system working exactly as intended.<br>Muted Forest bukan protes. Bukan dokumenter. Ia adalah arsip tandingan. Ia mendokumentasikan apa yang tak bisa dilihat oleh data – dan bertanya apa yang bersedia kita dengar ketika sistem berhenti menyiarkan.<br><br>Footnote:<br>Referensi historis dalam teks ini diambil dari dua tesis akademis:<br>Doni Anggono, <b>Dinamika Kawasan Wonokromo Tahun 1942‑1948</b> (Universitas Airlangga, 2014). <br>Kholis Gurad Deka, <b>Perkembangan Kebun Binatang Surabaya 1916‑1955</b> (Universitas Airlangga, 2006).<br>Kedua dokumen tersebut dapat diakses secara publik melalui repositori Universitas Airlangga." },
+        { x: 500, html: "<b>Ada yang aneh dari pencatatan yang ditemukan di sini. Data global menegaskan bahwa fragmen hutan Wonokromo sudah tidak ada lagi—secara resmi mengklasifikasikannya sebagai memiliki tepat 0,0 hektar hutan alami. Namun, jika Anda berjalan melalui area Kebun Binatang Surabaya, pepohonan itu ada di sana, menaungi bayangan panjang. Tampaknya manusia memiliki kebiasaan menghapus realitas fisik hanya dengan menghapusnya dari buku besar.<br>Untuk mendokumentasikan tempat yang telah dibungkam oleh birokrasi, pengamatan standar saja tidak cukup. Sebagai gantinya, metodologi yang tidak biasa digunakan." },
+        { x: 600, html: "The Method of Restraint<br><br>- Antarmuka: Sebuah entitas bertopeng duduk di bawah sinar matahari yang terang dan biasa saja di kebun binatang, tepat di samping keluarga dan pejalan kaki di hari Minggu.<br>- Penerjemahan: Menggunakan sirkuit terbuka dan intuisi taktil, entitas tersebut menerjemahkan gesekan fisik dari pepohonan yang <i>tidak ada</i> itu menjadi dinding suara keras yang memekik selama dua puluh menit.<br>- Pemutusan: Entitas tersebut tidak dapat mendengar satu pun frekuensi yang mereka ciptakan.<br>Beroperasi di bawah lingkaran umpan balik pendengaran nol yang ketat, sang penampil menjadi tidak lebih dari sensor buta yang tidak mendengar. Kerumunan yang lewat hanya mendengar suara ambien taman yang damai, tidak menyadari arsitektur suara yang menggelegar yang sedang dibangun tepat di samping mereka. Suara itu dialihkan sepenuhnya melewati telinga manusia, langsung dimasukkan ke dalam perangkat penangkap digital.<br>Pertemuan yang keras dan memekakkan telinga terjadi di siang bolong, tetapi hanya mesin yang diizinkan untuk menyaksikannya. Saya rasa itu masuk akal. Ketika sebuah hutan diberitahu oleh sebuah sistem bahwa ia tidak ada lagi, cara paling jujur ​​untuk merekam spiritnya adalah dengan memutus kemampuan Anda sendiri untuk mendengarkan." },
+        { x: 700, html: "Muted Forest: Wonokromo<br><a href='https://archive.org/details/muted-forest-wonokromo-zine' target='_blank' rel='noopener noreferrer'>Photographic Archive (zine)</a><br><a href='https://archive.org/details/karnivulgar-muted-forest-wonokromo' target='_blank' rel='noopener noreferrer'>Field Recording Archive</a><br><br>The Deafening: Wonokromo<br><a href='https://karnivorousvulgaris.tumblr.com/post/820992730322878464/the-deafening-wonokromo' target='_blank' rel='noopener noreferrer'>Watch The Cinema</a><br><br>from workshop: Bermain dengan Suara Kota<br><a href='https://archive.org/details/heirosay-saksi-bisu'>Saksi Bisu by Heirosay</a>" },
+        { x: 800, html: "credits<br>(c) 2026 Karnivulgar<br><a href='http://creativecommons.org/licenses/by-nc-nd/4.0/' target='_blank' rel='noopener noreferrer'><img alt='Creative Commons License' src='https://i.creativecommons.org/l/by-nc-nd/4.0/80x15.png' /></a><br>music by <a href='https://pixabay.com/users/ags_project-29414315/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=219384'>AGS AGS</a> from <a href='https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=219384'>Pixabay</a>" }
+    ];
+    // =====================================================================
+
+    const colors = {
+        sky: '#e0e5e5', skyDark: '#8a9494', path: '#8f9593', pathLine: '#7a807e',
+        fenceWood: '#5c2c16', fenceBase: '#2b2b2b', muralBG: '#6c757d', muralTree: '#222',
+        monstera: '#153118', monsteraDetail: '#0a170b', forestDeep: '#0d1c0f',
+        structure: '#1a1a1a', speakerBox: '#222', speakerCone: '#444',
+        skin: '#e8b59b', hair: '#2c1e16', shirt: '#d9534f', pants: '#33415c'
+    };
+
+    function drawSprite(spriteData, startX, startY, colorMap) {
+        for (let row = 0; row < spriteData.length; row++) {
+            for (let col = 0; col < spriteData[row].length; col++) {
+                const char = spriteData[row][col];
+                if (char !== ' ') {
+                    ctx.fillStyle = colorMap[char];
+                    ctx.fillRect(Math.floor(startX + col), Math.floor(startY + row), 1, 1);
+                }
+            }
+        }
+    }
+
+    const girlSprite = [
+        "  HHHH  ", " HHHHHH ", " HHSSHH ", "  SSSS  ", "  TTTT  ",
+        " TTTTTT ", " S TT S ", "   PP   ", "  P  P  ", "  P  P  "
+    ];
+
+    const girlColors = { 'H': colors.hair, 'S': colors.skin, 'T': colors.shirt, 'P': colors.pants };
+    const silhouetteColors = { 'H': '#d0d6d6', 'S': '#d0d6d6', 'T': '#d0d6d6', 'P': '#d0d6d6' };
+    
+    // (FIXED) Variables declared exactly ONCE here
+    const player = { x: 50, y: 150, speed: 1.5, dx: 0, dy: 0 };
+    let activeZone = null; let stepCounter = 0;
+    let cameraX = 0;
+    const keys = { w: false, a: false, s: false, d: false };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') keys.w = true;
+        if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = true;
+        if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
+        if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') keys.w = false;
+        if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = false;
+        if (e.key === 's' || e.key === 'ArrowDown') keys.s = false;
+        if (e.key === 'd' || e.key === 'ArrowRight') keys.d = false;
+    });
+
+    function setupTouchButton(buttonId, keyName) {
+        const btn = document.getElementById(buttonId);
+        const press = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); };
+        const release = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+        
+        btn.addEventListener('touchstart', press, { passive: false });
+        btn.addEventListener('touchend', release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
+        btn.addEventListener('mousedown', press);
+        btn.addEventListener('mouseup', release);
+        btn.addEventListener('mouseleave', release);
+    }
+    setupTouchButton('btn-up', 'w'); setupTouchButton('btn-left', 'a');
+    setupTouchButton('btn-down', 's'); setupTouchButton('btn-right', 'd');
+
+    // Drawing Environments
+    function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, WORLD_WIDTH, 0);
+        gradient.addColorStop(0, colors.sky); gradient.addColorStop(0.7, colors.sky); gradient.addColorStop(1, colors.skyDark);
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, WORLD_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = '#2d4a22'; ctx.fillRect(0, 40, 400, 50); 
+        ctx.fillStyle = colors.structure; ctx.fillRect(200, 30, 80, 40); 
+        ctx.fillStyle = '#1e3814'; ctx.fillRect(350, 20, 150, 60); 
+        ctx.fillStyle = colors.forestDeep; ctx.fillRect(600, 0, 400, 100); 
+        ctx.fillStyle = '#132915'; ctx.fillRect(650, 20, 310, 80);
+    }
+
+    function drawFence() {
+        const fenceY = 80; const fenceHeight = 50;
+        ctx.fillStyle = colors.fenceBase; ctx.fillRect(0, fenceY + fenceHeight - 5, WORLD_WIDTH, 5);
+        for (let i = 0; i < WORLD_WIDTH; i += 80) {
+            ctx.fillStyle = colors.fenceWood; ctx.fillRect(i, fenceY, 40, fenceHeight - 5);
+            ctx.fillStyle = '#4a2311'; for(let j = i; j < i + 40; j += 4) { ctx.fillRect(j, fenceY, 1, fenceHeight - 5); }
+            if (i < 320) {
+                ctx.fillStyle = colors.muralBG; ctx.fillRect(i + 40, fenceY, 40, fenceHeight - 5);
+                ctx.fillStyle = colors.muralTree;
+                ctx.fillRect(i + 45, fenceY + 10, 2, 35); ctx.fillRect(i + 52, fenceY + 15, 1, 30);
+                ctx.fillRect(i + 65, fenceY + 5, 3, 40); ctx.fillRect(i + 72, fenceY + 20, 1, 25);
+            } else {
+                ctx.fillStyle = colors.fenceWood; ctx.fillRect(i + 40, fenceY, 40, fenceHeight - 5);
+                ctx.fillStyle = '#2d4a22'; ctx.fillRect(i + 50, fenceY, 5, 40); ctx.fillRect(i + 65, fenceY + 10, 4, 35);
+            }
+        }
+    }
+
+    function drawWalkway() {
+        const gradient = ctx.createLinearGradient(0, 0, WORLD_WIDTH, 0);
+        gradient.addColorStop(0, colors.path); gradient.addColorStop(0.6, colors.path); gradient.addColorStop(0.9, '#4a443b'); 
+        ctx.fillStyle = gradient; ctx.fillRect(0, 130, WORLD_WIDTH, 50);
+        ctx.fillStyle = colors.pathLine; ctx.fillRect(0, 140, WORLD_WIDTH, 1); ctx.fillRect(0, 155, WORLD_WIDTH, 1); ctx.fillRect(0, 175, WORLD_WIDTH, 1);
+        for (let i = -100; i < WORLD_WIDTH + 100; i += 30) {
+            ctx.beginPath(); ctx.moveTo(i, 130); ctx.quadraticCurveTo(i + 20, 150, i + 50, 180); ctx.stroke();
+        }
+    }
+
+    function drawMidgroundElements() {
+        const ampX = 480, ampY = 70;
+        ctx.fillStyle = colors.speakerBox; ctx.fillRect(ampX, ampY, 40, 60); ctx.fillRect(ampX + 5, ampY - 30, 30, 30); 
+        ctx.fillStyle = colors.speakerCone; ctx.beginPath(); ctx.arc(ampX + 20, ampY + 15, 10, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(ampX + 20, ampY + 45, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.moveTo(ampX + 20, ampY + 60); ctx.quadraticCurveTo(ampX + 40, 150, ampX - 20, 170); ctx.stroke();
+    }
+
+    function defineForegroundPath() {
+        ctx.beginPath(); ctx.rect(240, 100, 60, 80); ctx.rect(750, 80, 80, 100); ctx.rect(850, 60, 100, 120); ctx.rect(680, 130, 40, 60);
+    }
+
+    function drawForegroundElements() {
+        ctx.fillStyle = colors.monstera; ctx.fillRect(240, 100, 60, 80);
+        ctx.fillStyle = colors.monsteraDetail; ctx.fillRect(250, 120, 20, 2); ctx.fillRect(270, 140, 30, 3); ctx.fillRect(260, 160, 40, 2);
+        ctx.fillStyle = colors.forestDeep; ctx.fillRect(750, 80, 80, 100); ctx.fillRect(850, 60, 100, 120); ctx.fillRect(680, 130, 40, 60);
+    }
+
+    // --- Main Game Loop ---
+    function update() {
+    // 1. Movement Logic (Only if game has started)
+    if (hasStarted) {
+        if (keys.w) player.dy = -player.speed;
+        else if (keys.s) player.dy = player.speed;
+        else player.dy = 0;
+
+        if (keys.a) player.dx = -player.speed;
+        else if (keys.d) player.dx = player.speed;
+        else player.dx = 0;
+
+        // Play step sound if moving
+        if (player.dx !== 0 || player.dy !== 0) {
+            stepCounter++;
+            if (stepCounter > 20) { stepSound.play(); stepCounter = 0; }
+        }
+        
+        player.x += player.dx; player.y += player.dy;
+        
+        // Bounds Checking
+        if (player.x < 0) player.x = 0;
+        if (player.x > WORLD_WIDTH - 8) player.x = WORLD_WIDTH - 8;
+        if (player.y < 120) player.y = 120; 
+        if (player.y > GAME_HEIGHT - 10) player.y = GAME_HEIGHT - 10;
+    }
+
+    // 2. Camera Logic
+    cameraX = player.x - GAME_WIDTH / 2;
+    if (cameraX < 0) cameraX = 0;
+    if (cameraX > WORLD_WIDTH - GAME_WIDTH) cameraX = WORLD_WIDTH - GAME_WIDTH;
+
+    // 3. Drawing Logic
+    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.save();
+    ctx.translate(-cameraX, 0); 
+    drawBackground(); drawFence(); drawWalkway(); drawMidgroundElements();
+    drawSprite(girlSprite, player.x, player.y, girlColors);
+    drawForegroundElements();
+    ctx.save(); defineForegroundPath(); ctx.clip(); 
+    ctx.globalAlpha = 0.6; drawSprite(girlSprite, player.x, player.y, silhouetteColors); 
+    ctx.restore();
+
+    // 4. Proximity Logic
+    let foundZone = textZones.find(z => Math.abs(player.x - z.x) < 40);
+    if (foundZone) {
+        if (activeZone !== foundZone) {
+            bubble.style.display = 'block';
+            bubble.innerHTML = foundZone.html;
+            activeZone = foundZone;
+        }
+    } else if (activeZone !== null) {
+        bubble.style.display = 'none';
+        activeZone = null;
+    }
+    
+    ctx.restore(); 
+    requestAnimationFrame(update);
+}
+    
+    update();
+</script>
+</body>
+</html>
