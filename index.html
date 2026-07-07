@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Muted Forest: Wonokromo by Karnivulgar</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; background-color: #000; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; -webkit-tap-highlight-color: transparent; 
+        }
+        canvas {
+            width: 100vw; height: 100vh; object-fit: contain; 
+            image-rendering: -moz-crisp-edges; image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges; image-rendering: pixelated; touch-action: none; 
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9); z-index: 99999;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+        }
+        #start-btn { padding: 20px 40px; border: 1px solid #e0e5e5; color: #e0e5e5; font-family: monospace; background: transparent; cursor: pointer; font-size: 20px; }
+        #start-btn:hover { background: #e0e5e5; color: #000; }
+        
+        /* Updated Text Bubble Style */
+        #text-bubble {
+    position: absolute; 
+    display: none; 
+    background: rgba(26, 26, 26, 0.95);
+    color: #e0e5e5; 
+    padding: 15px; 
+    border: 1px solid #444;
+    font-family: monospace; 
+    font-size: 12px; 
+    /* New Centering Logic */
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%); /* This forces it to be perfectly centered */
+    max-width: 600px;
+    width: 80%;
+    max-height: 50vh; 
+    overflow-y: auto;
+    pointer-events: auto !important; 
+    z-index: 10000 !important; 
+    border-radius: 4px; 
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+}
+
+        #dpad {
+            position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
+            display: grid; grid-template-columns: 40px 40px 40px; grid-template-rows: 40px 40px 40px;
+            gap: 2px; opacity: 0.35; z-index: 10001; user-select: none; -webkit-user-select: none; touch-action: none; pointer-events: none; 
+        }
+        .dpad-btn {
+            background-color: #2b2b2b; color: #8f9593; border: 2px solid #1a1a1a;
+            font-family: monospace; font-size: 16px; font-weight: bold; display: flex;
+            justify-content: center; align-items: center; cursor: pointer;
+            box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; border-radius: 4px; pointer-events: auto; 
+        }
+        .dpad-btn:active, .dpad-btn.active { background-color: #6c757d; color: #fff; opacity: 1.0; }
+        
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+        
+        @media (min-width: 800px) { #dpad { opacity: 0.2; } }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay"><button id="start-btn">START</button></div>
+<div id="text-bubble"></div>
+<canvas id="gameCanvas"></canvas>
+
+<div id="dpad">
+    <div id="btn-up" class="dpad-btn">▲</div>
+    <div id="btn-left" class="dpad-btn">◀</div>
+    <div id="btn-right" class="dpad-btn">▶</div>
+    <div id="btn-down" class="dpad-btn">▼</div>
+</div>
+
+<script>
+    // Audio Setup (URLs)
+    const bgm = new Audio('https://github.com/defn-networks/test-2/raw/main/ags_project-8-bit-219384.mp3'); // BGM URL
+    const stepSound = new Audio('https://github.com/defn-networks/test-2/raw/main/footstep%20on%20concrete%204.mp3'); // Step URL
+    bgm.loop = true;
+    bgm.volume = 0.5;
+
+    let hasStarted = false;
+    document.getElementById('start-btn').addEventListener('click', () => {
+        document.getElementById('start-overlay').style.display = 'none';
+        bgm.play();
+        hasStarted = true;
+    });
+    
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const bubble = document.getElementById('text-bubble');
+    // This catches any click made inside the bubble and ensures it triggers the link
+bubble.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'A') {
+        e.stopPropagation(); // Stops the game engine from seeing the click
+    }
+});
+    bubble.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A') {
+        e.stopPropagation();
+        window.open(e.target.href, '_blank'); // Force open in new tab
+    }
+});
+
+    let GAME_WIDTH = 320; let GAME_HEIGHT = 180; let WORLD_WIDTH = 960; 
+
+    function resizeCanvas() {
+        const screenAspect = window.innerWidth / window.innerHeight;
+        const baseAspect = 16 / 9;
+        if (screenAspect > baseAspect) {
+            GAME_HEIGHT = 180; GAME_WIDTH = Math.floor(GAME_HEIGHT * screenAspect);
+        } else {
+            GAME_WIDTH = 320; GAME_HEIGHT = 180;
+        }
+        canvas.width = GAME_WIDTH; canvas.height = GAME_HEIGHT;
+        WORLD_WIDTH = Math.max(960, GAME_WIDTH * 3);
+    }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    bubble.addEventListener('click', function(e) {
+    if (e.target.tagName === 'A') {
+        // This lets the link open normally without triggering game movement
+        e.stopPropagation(); 
+    }
+});
+
+    // =====================================================================
+    // 📝 TEXT BUBBLE CONTENT
+    // =====================================================================
+    const textZones = [
+        { x: 150, html: "<b>System Override: The Architecture of Extraction</b><br><br>You could call this a forest. Officially, you’d be wrong. The data says Surabaya has zero hectares of natural forest. But inside Kebun Binatang Surabaya, the trees are still there. They’ve been standing through all of it. They’re still standing now.<br>This place has never been quiet. It just looks that way from a distance. <br>History isn’t a story we tell to feel something. It’s a sequence of systems doing what they were built to do. In Wonokromo, those systems kept repeating. The players changed. The architecture didn’t." },
+        { x: 300, html: "In <b>1942</b>, the Japanese invasion wasn’t met with resistance – it was met with a prophecy. The Joyoboyo legend had already prepared the ground. The occupation was processed as destiny. One cultural algorithm replaced another. And the physical evidence of that transition – a military bunker, still standing behind the zoo – is a reminder that extraction rarely announces itself as violence. It presents itself as progress.<br>In <b>1943</b>, the zoo hosted propaganda performances. Gambang. Ludruk. A group called Trio, performing sound art for the Japanese administration. At the same time, the zoo’s materials were being diverted for the war effort. The animals stayed. The infrastructure went elsewhere.<br>In <b>1944</b>, Allied bombs hit the BPM oil refinery. The explosion was visible across Wonokromo. The cloud of fire was photographed from the air. It’s still in the archive.<br>In <b>1945</b>, Gurkha troops fought Indonesian youth at the Wonokromo bridge. The young fighters didn’t win. But they didn’t leave either. They stayed in the ground." }, 
+        { x: 400, html: "Today, the extraction continues. It’s just harder to see. It’s in bureaucratic static. It’s in missing billions. The loop hasn’t stopped. Only the variables have changed.<br>The photographs and field recordings in this room are not illustrations. They are evidence of friction – where urban ecology meets structural ruin. They were taken in one visit. No edits. No retouching. The film was shot in one continuous take. The sound is raw.<br>This isn’t a limitation. It’s a position.<br>Noise is often treated as failure. But noise is not the absence of a signal. It is the sound of the system working exactly as intended.<br>Muted Forest is not a protest. It is not a documentary. It is a counter-archive. It documents what the data cannot see – and asks what we’re willing to hear when the system stops broadcasting.<br><br>Footnote:<br>Historical references in this text are drawn from two academic theses:<br>Doni Anggono, <b>Dinamika Kawasan Wonokromo Tahun 1942‑1948</b> (Universitas Airlangga, 2014). <br>Kholis Gurad Deka, <b>Perkembangan Kebun Binatang Surabaya 1916‑1955</b> (Universitas Airlangga, 2006).<br>Both documents are publicly accessible via the Universitas Airlangga repository." },
+        { x: 500, html: "<b>The Deafening: Wonokromo</b><br>Field Notes: The Wonokromo Contradiction<br><br>Human records are peculiar. The global data insists that the Wonokromo forest fragment no longer exists—officially classifying it as having exactly 0.0 hectares of natural forest. Yet, if you walk through the grounds of Kebun Binatang Surabaya, the trees are right there, casting long shadows. It seems humans have a habit of erasing physical realities just by writing them out of a ledger.<br>To document a place that has been muted by bureaucracy, standard observation isn't quite enough. Instead, a rather strange methodology was deployed." },
+        { x: 600, html: "The Method of Restraint<br><br>- The Interface: A masked entity sat in the bright, mundane daylight of the zoo, right alongside families and Sunday strollers.<br>- The Translation: Using an exposed circuit and tactile intuition, the entity translated the physical friction of those <i>non-existent</i> trees into a twenty-minute wall of violently bending harsh noise.<br>- The Severance: The entity could not hear a single frequency they were creating.<br>Operating under a strict zero-auditory-feedback loop, the performer became nothing more than a blind, unhearing sensor. The passing crowds heard only the peaceful ambient sounds of the park, oblivious to the roaring sonic architecture being built directly beside them. The noise was routed completely past human ears, fed straight into a digital capture device.<br>A violent, deafening encounter occurred in broad daylight, but only the machine was permitted to witness it. I suppose it makes sense. When a forest is told by a system that it is no longer there, the most honest way to record its ghost is to sever your own ability to listen." },
+        { x: 700, html: "Muted Forest: Wonokromo<br><a href='https://archive.org/details/muted-forest-wonokromo-zine' target='_blank' rel='noopener noreferrer'>Photographic Archive (zine)</a><br><a href='https://archive.org/details/karnivulgar-muted-forest-wonokromo' target='_blank' rel='noopener noreferrer'>Field Recording Archive</a><br><br>The Deafening: Wonokromo<br><a href='https://karnivorousvulgaris.tumblr.com/post/820992730322878464/the-deafening-wonokromo' target='_blank' rel='noopener noreferrer'>Watch The Cinema</a>" },
+        { x: 800, html: "credits<br>(c) 2026 Karnivulgar<br><a href='http://creativecommons.org/licenses/by-nc-nd/4.0/' target='_blank' rel='noopener noreferrer'><img alt='Creative Commons License' src='https://i.creativecommons.org/l/by-nc-nd/4.0/80x15.png' /><br>music by <a href='https://pixabay.com/users/ags_project-29414315/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=219384'>AGS AGS</a> from <a href='https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=219384'>Pixabay</a>" }
+    ];
+    // =====================================================================
+
+    const colors = {
+        sky: '#e0e5e5', skyDark: '#8a9494', path: '#8f9593', pathLine: '#7a807e',
+        fenceWood: '#5c2c16', fenceBase: '#2b2b2b', muralBG: '#6c757d', muralTree: '#222',
+        monstera: '#153118', monsteraDetail: '#0a170b', forestDeep: '#0d1c0f',
+        structure: '#1a1a1a', speakerBox: '#222', speakerCone: '#444',
+        skin: '#e8b59b', hair: '#2c1e16', shirt: '#d9534f', pants: '#33415c'
+    };
+
+    function drawSprite(spriteData, startX, startY, colorMap) {
+        for (let row = 0; row < spriteData.length; row++) {
+            for (let col = 0; col < spriteData[row].length; col++) {
+                const char = spriteData[row][col];
+                if (char !== ' ') {
+                    ctx.fillStyle = colorMap[char];
+                    ctx.fillRect(Math.floor(startX + col), Math.floor(startY + row), 1, 1);
+                }
+            }
+        }
+    }
+
+    const girlSprite = [
+        "  HHHH  ", " HHHHHH ", " HHSSHH ", "  SSSS  ", "  TTTT  ",
+        " TTTTTT ", " S TT S ", "   PP   ", "  P  P  ", "  P  P  "
+    ];
+
+    const girlColors = { 'H': colors.hair, 'S': colors.skin, 'T': colors.shirt, 'P': colors.pants };
+    const silhouetteColors = { 'H': '#d0d6d6', 'S': '#d0d6d6', 'T': '#d0d6d6', 'P': '#d0d6d6' };
+    
+    // (FIXED) Variables declared exactly ONCE here
+    const player = { x: 50, y: 150, speed: 1.5, dx: 0, dy: 0 };
+    let activeZone = null; let stepCounter = 0;
+    let cameraX = 0;
+    const keys = { w: false, a: false, s: false, d: false };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') keys.w = true;
+        if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = true;
+        if (e.key === 's' || e.key === 'ArrowDown') keys.s = true;
+        if (e.key === 'd' || e.key === 'ArrowRight') keys.d = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.key === 'w' || e.key === 'ArrowUp') keys.w = false;
+        if (e.key === 'a' || e.key === 'ArrowLeft') keys.a = false;
+        if (e.key === 's' || e.key === 'ArrowDown') keys.s = false;
+        if (e.key === 'd' || e.key === 'ArrowRight') keys.d = false;
+    });
+
+    function setupTouchButton(buttonId, keyName) {
+        const btn = document.getElementById(buttonId);
+        const press = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('active'); };
+        const release = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+        
+        btn.addEventListener('touchstart', press, { passive: false });
+        btn.addEventListener('touchend', release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
+        btn.addEventListener('mousedown', press);
+        btn.addEventListener('mouseup', release);
+        btn.addEventListener('mouseleave', release);
+    }
+    setupTouchButton('btn-up', 'w'); setupTouchButton('btn-left', 'a');
+    setupTouchButton('btn-down', 's'); setupTouchButton('btn-right', 'd');
+
+    // Drawing Environments
+    function drawBackground() {
+        const gradient = ctx.createLinearGradient(0, 0, WORLD_WIDTH, 0);
+        gradient.addColorStop(0, colors.sky); gradient.addColorStop(0.7, colors.sky); gradient.addColorStop(1, colors.skyDark);
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, WORLD_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = '#2d4a22'; ctx.fillRect(0, 40, 400, 50); 
+        ctx.fillStyle = colors.structure; ctx.fillRect(200, 30, 80, 40); 
+        ctx.fillStyle = '#1e3814'; ctx.fillRect(350, 20, 150, 60); 
+        ctx.fillStyle = colors.forestDeep; ctx.fillRect(600, 0, 400, 100); 
+        ctx.fillStyle = '#132915'; ctx.fillRect(650, 20, 310, 80);
+    }
+
+    function drawFence() {
+        const fenceY = 80; const fenceHeight = 50;
+        ctx.fillStyle = colors.fenceBase; ctx.fillRect(0, fenceY + fenceHeight - 5, WORLD_WIDTH, 5);
+        for (let i = 0; i < WORLD_WIDTH; i += 80) {
+            ctx.fillStyle = colors.fenceWood; ctx.fillRect(i, fenceY, 40, fenceHeight - 5);
+            ctx.fillStyle = '#4a2311'; for(let j = i; j < i + 40; j += 4) { ctx.fillRect(j, fenceY, 1, fenceHeight - 5); }
+            if (i < 320) {
+                ctx.fillStyle = colors.muralBG; ctx.fillRect(i + 40, fenceY, 40, fenceHeight - 5);
+                ctx.fillStyle = colors.muralTree;
+                ctx.fillRect(i + 45, fenceY + 10, 2, 35); ctx.fillRect(i + 52, fenceY + 15, 1, 30);
+                ctx.fillRect(i + 65, fenceY + 5, 3, 40); ctx.fillRect(i + 72, fenceY + 20, 1, 25);
+            } else {
+                ctx.fillStyle = colors.fenceWood; ctx.fillRect(i + 40, fenceY, 40, fenceHeight - 5);
+                ctx.fillStyle = '#2d4a22'; ctx.fillRect(i + 50, fenceY, 5, 40); ctx.fillRect(i + 65, fenceY + 10, 4, 35);
+            }
+        }
+    }
+
+    function drawWalkway() {
+        const gradient = ctx.createLinearGradient(0, 0, WORLD_WIDTH, 0);
+        gradient.addColorStop(0, colors.path); gradient.addColorStop(0.6, colors.path); gradient.addColorStop(0.9, '#4a443b'); 
+        ctx.fillStyle = gradient; ctx.fillRect(0, 130, WORLD_WIDTH, 50);
+        ctx.fillStyle = colors.pathLine; ctx.fillRect(0, 140, WORLD_WIDTH, 1); ctx.fillRect(0, 155, WORLD_WIDTH, 1); ctx.fillRect(0, 175, WORLD_WIDTH, 1);
+        for (let i = -100; i < WORLD_WIDTH + 100; i += 30) {
+            ctx.beginPath(); ctx.moveTo(i, 130); ctx.quadraticCurveTo(i + 20, 150, i + 50, 180); ctx.stroke();
+        }
+    }
+
+    function drawMidgroundElements() {
+        const ampX = 480, ampY = 70;
+        ctx.fillStyle = colors.speakerBox; ctx.fillRect(ampX, ampY, 40, 60); ctx.fillRect(ampX + 5, ampY - 30, 30, 30); 
+        ctx.fillStyle = colors.speakerCone; ctx.beginPath(); ctx.arc(ampX + 20, ampY + 15, 10, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(ampX + 20, ampY + 45, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.moveTo(ampX + 20, ampY + 60); ctx.quadraticCurveTo(ampX + 40, 150, ampX - 20, 170); ctx.stroke();
+    }
+
+    function defineForegroundPath() {
+        ctx.beginPath(); ctx.rect(240, 100, 60, 80); ctx.rect(750, 80, 80, 100); ctx.rect(850, 60, 100, 120); ctx.rect(680, 130, 40, 60);
+    }
+
+    function drawForegroundElements() {
+        ctx.fillStyle = colors.monstera; ctx.fillRect(240, 100, 60, 80);
+        ctx.fillStyle = colors.monsteraDetail; ctx.fillRect(250, 120, 20, 2); ctx.fillRect(270, 140, 30, 3); ctx.fillRect(260, 160, 40, 2);
+        ctx.fillStyle = colors.forestDeep; ctx.fillRect(750, 80, 80, 100); ctx.fillRect(850, 60, 100, 120); ctx.fillRect(680, 130, 40, 60);
+    }
+
+    // --- Main Game Loop ---
+    function update() {
+    // 1. Movement Logic (Only if game has started)
+    if (hasStarted) {
+        if (keys.w) player.dy = -player.speed;
+        else if (keys.s) player.dy = player.speed;
+        else player.dy = 0;
+
+        if (keys.a) player.dx = -player.speed;
+        else if (keys.d) player.dx = player.speed;
+        else player.dx = 0;
+
+        // Play step sound if moving
+        if (player.dx !== 0 || player.dy !== 0) {
+            stepCounter++;
+            if (stepCounter > 20) { stepSound.play(); stepCounter = 0; }
+        }
+        
+        player.x += player.dx; player.y += player.dy;
+        
+        // Bounds Checking
+        if (player.x < 0) player.x = 0;
+        if (player.x > WORLD_WIDTH - 8) player.x = WORLD_WIDTH - 8;
+        if (player.y < 120) player.y = 120; 
+        if (player.y > GAME_HEIGHT - 10) player.y = GAME_HEIGHT - 10;
+    }
+
+    // 2. Camera Logic
+    cameraX = player.x - GAME_WIDTH / 2;
+    if (cameraX < 0) cameraX = 0;
+    if (cameraX > WORLD_WIDTH - GAME_WIDTH) cameraX = WORLD_WIDTH - GAME_WIDTH;
+
+    // 3. Drawing Logic
+    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.save();
+    ctx.translate(-cameraX, 0); 
+    drawBackground(); drawFence(); drawWalkway(); drawMidgroundElements();
+    drawSprite(girlSprite, player.x, player.y, girlColors);
+    drawForegroundElements();
+    ctx.save(); defineForegroundPath(); ctx.clip(); 
+    ctx.globalAlpha = 0.6; drawSprite(girlSprite, player.x, player.y, silhouetteColors); 
+    ctx.restore();
+
+    // 4. Proximity Logic
+    let foundZone = textZones.find(z => Math.abs(player.x - z.x) < 40);
+    if (foundZone) {
+        if (activeZone !== foundZone) {
+            bubble.style.display = 'block';
+            bubble.innerHTML = foundZone.html;
+            activeZone = foundZone;
+        }
+    } else if (activeZone !== null) {
+        bubble.style.display = 'none';
+        activeZone = null;
+    }
+    
+    ctx.restore(); 
+    requestAnimationFrame(update);
+}
+    
+    update();
+</script>
+</body>
+</html>
