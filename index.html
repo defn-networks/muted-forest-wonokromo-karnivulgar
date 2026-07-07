@@ -479,10 +479,10 @@ bubble.addEventListener('mousedown', function(e) {
     toggleBtn.addEventListener('click', () => {
         if (chatUi.style.display === 'flex') {
             chatUi.style.display = 'none';
-            toggleBtn.innerText = '[ MSG_SYS ]';
+            toggleBtn.innerText = '[ LIVCHAT ]';
         } else {
             chatUi.style.display = 'flex';
-            toggleBtn.innerText = '[ CLOSE_SYS ]';
+            toggleBtn.innerText = '[ CLOSE_CHT ]';
             chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
         }
     });
