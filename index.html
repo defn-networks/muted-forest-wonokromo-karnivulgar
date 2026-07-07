@@ -24,6 +24,74 @@
         }
         #start-btn { padding: 20px 40px; border: 1px solid #e0e5e5; color: #e0e5e5; font-family: monospace; background: transparent; cursor: pointer; font-size: 20px; }
         #start-btn:hover { background: #e0e5e5; color: #000; }
+
+        /* --- CHAT TOGGLE BUTTON --- */
+#chat-toggle-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 10002;
+    background: #2b2b2b;
+    color: #8f9593;
+    border: 1px solid #444;
+    padding: 6px 12px;
+    font-family: monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+#chat-toggle-btn:hover { background: #6c757d; color: #fff; }
+
+/* --- SLIDE-OUT CHAT INTERFACE --- */
+#chat-ui {
+    position: absolute;
+    top: 55px;
+    right: 15px;
+    width: 280px;
+    background: rgba(26, 26, 26, 0.95);
+    color: #e0e5e5;
+    border: 1px solid #444;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 10000;
+    display: none; /* Controlled by toggle button */
+    flex-direction: column;
+    border-radius: 4px;
+    box-sizing: border-box;
+    pointer-events: auto;
+}
+.chat-header {
+    padding: 8px;
+    border-bottom: 1px dashed #444;
+    display: flex;
+    justify-content: space-between;
+    color: #8f9593;
+}
+#chat-messages {
+    height: 180px;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    -webkit-overflow-scrolling: touch;
+}
+.message { border-left: 2px solid #5c2c16; padding-left: 6px; word-wrap: break-word; }
+.message-user { color: #8a9494; font-weight: bold; }
+.message-text { color: #e0e5e5; margin-top: 2px; }
+.chat-input-area { display: flex; border-top: 1px dashed #444; }
+#chat-input { flex: 1; background: transparent; border: none; color: #e0e5e5; padding: 8px; font-family: monospace; outline: none; }
+#chat-send { background: #2b2b2b; color: #8f9593; border: none; border-left: 1px solid #444; padding: 0 12px; cursor: pointer; font-family: monospace; font-weight: bold; }
+#chat-send:hover { background: #6c757d; color: #fff; }
+
+/* Responsive overlay rules for smaller smartphone viewports */
+@media (max-width: 600px) {
+    #chat-ui {
+        width: calc(100% - 30px);
+        left: 15px;
+        right: 15px;
+    }
+}
         
         /* Updated Text Bubble Style */
         #text-bubble {
@@ -95,6 +163,20 @@
 
     <div id="start-overlay"><button id="start-btn">START</button></div>
     <a href="id/index.html" style="position:fixed; top:10px; right:10px; z-index:99999; color:#fff;">ID</a>
+    <button id="chat-toggle-btn">[ MSG_SYS ]</button>
+
+<div id="chat-ui">
+    <div class="chat-header">
+        <span>[ TRANSMIT // SBY ]</span>
+        <span id="chat-status">[INIT]</span>
+    </div>
+    <div id="chat-messages"></div>
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Type message..." autocomplete="off">
+        <button id="chat-send">TX</button>
+    </div>
+</div>
+    
 <div id="text-bubble"></div>
 <canvas id="gameCanvas"></canvas>
 
@@ -354,6 +436,119 @@ bubble.addEventListener('mousedown', function(e) {
 }
     
     update();
+</script>
+    <script type="importmap">
+    {
+        "imports": {
+            "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+            "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+        }
+    }
+</script>
+
+<script type="module">
+    import { initializeApp } from "firebase/app";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
+
+    // FIREBASE CONFIG CONFIGURATION DETAILS HERE:
+    const firebaseConfig = {
+        apiKey: "AIzaSyA13xp4_esIgbMbWMiHcnfEmYRnP1j0xo0",
+    authDomain: "muted-forest-wonokromo.firebaseapp.com",
+    projectId: "muted-forest-wonokromo",
+    storageBucket: "muted-forest-wonokromo.firebasestorage.app",
+    messagingSenderId: "423728332011",
+    appId: "1:423728332011:web:816b77bbbfca652e9a12ae"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const chatUi = document.getElementById("chat-ui");
+    const toggleBtn = document.getElementById("chat-toggle-btn");
+    const chatMessagesDiv = document.getElementById("chat-messages");
+    const chatInput = document.getElementById("chat-input");
+    const chatSend = document.getElementById("chat-send");
+    const chatStatus = document.getElementById("chat-status");
+    let currentUser = null;
+
+    // Open/Close UI view function
+    toggleBtn.addEventListener('click', () => {
+        if (chatUi.style.display === 'flex') {
+            chatUi.style.display = 'none';
+            toggleBtn.innerText = '[ MSG_SYS ]';
+        } else {
+            chatUi.style.display = 'flex';
+            toggleBtn.innerText = '[ CLOSE_SYS ]';
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        }
+    });
+
+    // Isolate clicks to prevent character walking movements while interactive
+    chatUi.addEventListener('mousedown', e => e.stopPropagation());
+    chatUi.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+    toggleBtn.addEventListener('mousedown', e => e.stopPropagation());
+    toggleBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: false });
+
+    // Authentication Checks
+    signInAnonymously(auth).catch(err => {
+        console.error(err);
+        chatStatus.innerText = "[ERR_AUTH]";
+    });
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            chatStatus.innerText = "[ONLINE]";
+            listenForMessages();
+        } else {
+            chatStatus.innerText = "[OFFLINE]";
+        }
+    });
+
+    // Realtime Database Streams
+    const listenForMessages = () => {
+        const q = query(collection(db, "muted_forest_chat"), orderBy("timestamp", "asc"));
+        onSnapshot(q, (snapshot) => {
+            chatMessagesDiv.innerHTML = "";
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const messageEl = document.createElement("div");
+                messageEl.classList.add("message");
+                const userName = "anon_" + data.uid.slice(-4);
+                messageEl.innerHTML = `
+                    <div class="message-user">${escapeHtml(userName)}</div>
+                    <div class="message-text">${escapeHtml(data.text)}</div>
+                `;
+                chatMessagesDiv.appendChild(messageEl);
+            });
+            chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+        });
+    };
+
+    const sendMessage = async () => {
+        const text = chatInput.value.trim();
+        if (!text || !currentUser) return;
+        try {
+            await addDoc(collection(db, "muted_forest_chat"), {
+                text: text,
+                uid: currentUser.uid,
+                timestamp: serverTimestamp()
+            });
+            chatInput.value = "";
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    chatSend.addEventListener("click", sendMessage);
+    chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    }
 </script>
 </body>
 </html>
