@@ -50,6 +50,26 @@
     -webkit-overflow-scrolling: touch;
 }
 
+        #partners {
+    position: absolute;
+    bottom: 10px;
+    right: 100px; 
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 50;
+    pointer-events: auto;
+}
+
+#partners img {
+    height: 30px; /* Adjust height */
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+#partners img:hover {
+    opacity: 1.0;
+}
         #dpad {
             position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px;
             display: grid; grid-template-columns: 40px 40px 40px; grid-template-rows: 40px 40px 40px;
@@ -84,7 +104,11 @@
     <div id="btn-right" class="dpad-btn">▶</div>
     <div id="btn-down" class="dpad-btn">▼</div>
 </div>
-
+<div id="partners">
+    <a href="https://www.ifi-id.com/surabaya/" target="_blank"><img src="https://github.com/defn-networks/muted-forest-wonokromo-karnivulgar/blob/9c2d385b008b000d7e432d41791c66d8d895f6e5/IFI_Logo_support_Plan%20de%20travail.png"></a>
+    <a href="https://panjebarsemangat.id/" target="_blank"><img src="https://github.com/defn-networks/muted-forest-wonokromo-karnivulgar/blob/9c2d385b008b000d7e432d41791c66d8d895f6e5/Panjebar%20Semangat%20Logo%20-%20Red%20-%20PNG.png" alt="Partner 2"></a>
+</div>
+    
 <script>
     // Audio Setup (URLs)
     const bgm = new Audio('https://github.com/defn-networks/muted-forest-wonokromo-karnivulgar/raw/main/ags_project-8-bit-219384.mp3'); // BGM URL
